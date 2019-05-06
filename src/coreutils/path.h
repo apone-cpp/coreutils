@@ -10,6 +10,7 @@
 
 #ifdef _WIN32
 #    include <direct.h>
+#define PATH_MAX 1024
 #endif
 
 #ifdef __unix__
@@ -257,8 +258,11 @@ inline path absolute(path const& name)
 {
     std::string resolvedPath;
     char* resolvedPathRaw = new char[PATH_MAX];
+#ifdef _WIN32
+    char* result = _fullpath(resolvedPathRaw, name.string().c_str(), PATH_MAX);
+#else
     char* result = realpath(name.string().c_str(), resolvedPathRaw);
-
+#endif
     if (result)
         resolvedPath = resolvedPathRaw;
     delete[] resolvedPathRaw;
