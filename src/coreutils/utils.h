@@ -33,23 +33,6 @@ auto find_if(CONTAINER<T> const& haystack, FX const& fn)
     return std::find_if(begin(haystack), end(haystack), fn);
 }
 
-template <typename ITERATOR>
-std::string join(ITERATOR begin, ITERATOR end,
-                 const std::string& separator = ", ")
-{
-    std::ostringstream ss;
-
-    if (begin != end) {
-        ss << *begin++;
-    }
-
-    while (begin != end) {
-        ss << separator;
-        ss << *begin++;
-    }
-    return ss.str();
-}
-
 inline std::string spaces(int n)
 {
     return std::string(n, ' ');

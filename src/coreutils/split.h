@@ -2,95 +2,164 @@
 
 #include <algorithm>
 #include <cstring>
+#include <iostream>
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
 
+using namespace std::string_literals;
+
 namespace utils {
 
-class StringSplit
+template <typename ITERATOR, typename CHAR = char>
+std::basic_string<CHAR> join(ITERATOR begin, ITERATOR end, const CHAR separator)
 {
-    std::string source;
-    std::vector<char*> pointers;
-    char* ptr;
-    const int minSplits = -1;
+    std::basic_ostringstream<CHAR> ss;
 
-    void split(const char delim)
-    {
-        while (true) {
-            pointers.push_back(ptr);
-            ptr = strchr(ptr, delim);
-            if (ptr == nullptr)
-                break;
-            *ptr++ = 0;
-        }
+    if (begin != end) {
+        ss << *begin++;
     }
 
-    void split(const char* delim)
+    while (begin != end) {
+        ss << separator;
+        ss << *begin++;
+    }
+    return ss.str();
+}
+
+template <typename ITERATOR, typename CHAR = char>
+std::basic_string<CHAR> join(ITERATOR begin, ITERATOR end,
+                             std::basic_string<CHAR> const& separator = ", ")
+{
+    std::basic_ostringstream<CHAR> ss;
+
+    if (begin != end) {
+        ss << *begin++;
+    }
+
+    while (begin != end) {
+        ss << separator;
+        ss << *begin++;
+    }
+    return ss.str();
+}
+
+template <typename ITERATOR, typename CHAR = char>
+std::basic_string<CHAR> join(ITERATOR begin, ITERATOR end,
+                             const CHAR* separator)
+{
+    std::basic_ostringstream<CHAR> ss;
+
+    if (begin != end) {
+        ss << *begin++;
+    }
+
+    while (begin != end) {
+        ss << separator;
+        ss << *begin++;
+    }
+    return ss.str();
+}
+
+template <typename T> std::string my_tos(const T& t)
+{
+    return std::to_string(t);
+}
+
+inline std::string my_tos(const std::string& t)
+{
+    return t;
+}
+
+template <class... ARGS>
+std::string join(const std::string& sep, const ARGS&... args)
+{
+    std::vector<std::string> v{my_tos(args)...};
+    return join(v.begin(), v.end(), sep);
+}
+
+template <typename CHAR> class StringSplit
+{
+    std::basic_string<CHAR> source;
+    std::vector<CHAR*> pointers;
+    CHAR* ptr;
+    const int minSplits = -1;
+
+    void split(const std::basic_string<CHAR> delim)
     {
-        const auto dz = strlen(delim);
+        const auto dz = delim.length();
         while (true) {
             pointers.push_back(ptr);
-            ptr = strstr(ptr, delim);
-            if (ptr == nullptr)
+
+            auto pos = source.find(delim, ptr - &source[0]);
+            if (pos == std::string::npos)
                 break;
+            ptr = &source[pos];
             *ptr = 0;
             ptr += dz;
         }
     }
 
 public:
-    template <typename T>
-    StringSplit(T&& text, std::string const& delim, int minSplits = -1)
-        : source(std::forward<T>(text)), ptr(&source[0]), minSplits(minSplits)
-    {
-        split(delim.c_str());
-    }
-
-    template <typename T>
-    StringSplit(T&& text, const char delim, int minSplits = -1)
-        : source(std::forward<T>(text)), ptr(&source[0]), minSplits(minSplits)
+    StringSplit(std::basic_string<CHAR> text,
+                std::basic_string<CHAR> const& delim, int minSplits = -1)
+        : source(std::move(text)), ptr(&source[0]), minSplits(minSplits)
     {
         split(delim);
+    }
+
+    StringSplit(std::basic_string<CHAR> text, const char delim,
+                int minSplits = -1)
+        : source(std::move(text)), ptr(&source[0]), minSplits(minSplits)
+    {
+        split(std::string(1, delim));
     }
 
     size_t size() const { return pointers.size(); }
     auto begin() const { return pointers.begin(); }
     auto end() const { return pointers.end(); }
 
-    char const* operator[](size_t n) const
+    char const* operator[](unsigned n) const
     {
         return n < size() ? pointers[n] : nullptr;
     }
-    std::string getString(size_t n) const
+    std::basic_string<CHAR> getString(unsigned n) const
     {
         static std::string empty;
-        return n < size() ? std::string(pointers[n]) : empty;
+        return n < size() ? std::basic_string<CHAR>(pointers[n]) : empty;
     }
     operator bool() const { return minSplits < 0 || (int)size() >= minSplits; }
 
-    operator std::vector<std::string>() const
+    operator std::vector<std::basic_string<CHAR>>() const
     {
-        std::vector<std::string> result;
+        std::vector<std::basic_string<CHAR>> result;
         std::copy(pointers.begin(), pointers.end(), std::back_inserter(result));
         return result;
     }
 };
 
-template <typename T, typename S>
-inline StringSplit split(T&& s, S const& delim, int minSplits = -1)
+template <typename CHAR, typename S>
+inline StringSplit<CHAR> split(std::basic_string<CHAR> const& s, S const& delim,
+                               int minSplits = -1)
 {
-    return StringSplit(std::forward<T>(s), delim, minSplits);
+    return StringSplit<CHAR>(s, delim, minSplits);
+}
+
+template <typename CHAR, typename S>
+inline StringSplit<CHAR> split(const CHAR* const& s, S const& delim,
+                               int minSplits = -1)
+{
+    return StringSplit<CHAR>(std::basic_string<CHAR>(s), delim, minSplits);
 }
 
 template <size_t... Is>
-auto gen_tuple_impl(const StringSplit& ss, std::index_sequence<Is...>)
+auto gen_tuple_impl(const StringSplit<char>& ss, std::index_sequence<Is...>)
 {
     return std::make_tuple(ss.getString(Is)...);
 }
 
-template <size_t N> auto gen_tuple(const StringSplit& ss)
+template <size_t N> auto gen_tuple(const StringSplit<char>& ss)
 {
     return gen_tuple_impl(ss, std::make_index_sequence<N>{});
 }
@@ -122,30 +191,28 @@ struct URL
 inline URL parse_url(std::string const& input)
 {
     URL url;
-    std::vector<std::string> parts = split(input, "://");
+    std::vector<std::string> parts = split(input, "://"s);
 
-    if(parts.size() != 2)
+    if (parts.size() != 2)
         throw std::exception();
 
     url.protocol = parts[0];
 
     auto slash = parts[1].find_first_of('/');
-    if(slash == std::string::npos) {
+    if (slash == std::string::npos) {
         url.hostname = parts[1];
         return url;
     }
-    url.path = parts[1].substr(slash+1);
+    url.path = parts[1].substr(slash + 1);
     url.hostname = parts[1].substr(0, slash);
 
     auto colon = url.hostname.find_last_of(':');
-    if(colon != std::string::npos) {
-        url.port = std::atoi(url.hostname.substr(colon+1).c_str());
+    if (colon != std::string::npos) {
+        url.port = std::atoi(url.hostname.substr(colon + 1).c_str());
         url.hostname = url.hostname.substr(0, colon);
     }
 
     return url;
-
-}   
-
+}
 
 } // namespace utils

@@ -4,22 +4,6 @@
 #include <vector>
 
 #include <fmt/format.h>
-
-/* namespace fmt { */
-
-/* template <typename T> */
-/* inline void format_arg(BasicFormatter<char>& bf, const char*& fmt_str, */
-/*                        const std::vector<T>& v) */
-/* { */
-/*     bool first = true; */
-/*     for (const auto& a : v) { */
-/*         bf.writer() << (first ? '[' : ' ') << a; */
-/*         first = false; */
-/*     } */
-/*     bf.writer() << ']'; */
-/*     bf.writer() << fmt_str; */
-/* } */
-/* } // namespace fmt */
 #include <fmt/printf.h>
 
 namespace utils {
