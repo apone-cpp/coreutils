@@ -87,6 +87,42 @@ inline bool isLower(std::string const& s)
                        static_cast<bool (*)(char const&)>(&isLower));
 }
 
+inline void makeLower(std::string& s)
+{
+    for (auto& c : s)
+        c = tolower(c);
+}
+
+inline std::string toLower(const std::string& s)
+{
+    std::string s2 = s;
+    makeLower(s2);
+    return s2;
+}
+
+std::string path_basename(const std::string& name) {
+    return utils::path(name).stem();
+}
+
+std::string path_directory(const std::string& name) {
+    return utils::path(name).parent_path();
+}
+
+std::string path_filename(const std::string& name) {
+    return utils::path(name).filename();
+}
+
+std::string path_extension(const std::string& name) {
+    return utils::path(name).extension();
+}
+
+std::string path_suffix(const std::string& name) {
+    return path_extension(name);
+}
+
+//std::string path_prefix(const std::string& name) {
+//}
+
 inline std::string getUniqueKey(std::string const& fileName)
 {
     std::string result;
