@@ -3,8 +3,6 @@ project(apone.coreutils)
 
 set(SOURCE_FILES src/coreutils/log.cpp)
 
-add_subdirectory(../fmt fmt)
-
 add_library(coreutils ${SOURCE_FILES})
 target_link_libraries(coreutils PUBLIC fmt)
 target_include_directories(coreutils INTERFACE src)
