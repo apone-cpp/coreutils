@@ -100,23 +100,23 @@ inline std::string toLower(const std::string& s)
     return s2;
 }
 
-std::string path_basename(const std::string& name) {
+inline std::string path_basename(const std::string& name) {
     return utils::path(name).stem();
 }
 
-std::string path_directory(const std::string& name) {
+inline std::string path_directory(const std::string& name) {
     return utils::path(name).parent_path();
 }
 
-std::string path_filename(const std::string& name) {
+inline std::string path_filename(const std::string& name) {
     return utils::path(name).filename();
 }
 
-std::string path_extension(const std::string& name) {
+inline std::string path_extension(const std::string& name) {
     return utils::path(name).extension();
 }
 
-std::string path_suffix(const std::string& name) {
+inline std::string path_suffix(const std::string& name) {
     return path_extension(name);
 }
 
@@ -130,7 +130,7 @@ inline std::string getUniqueKey(std::string const& fileName)
         "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@_";
     utils::path p{fileName};
     if (utils::exists(p)) {
-        result = utils::File{p}.readAll();
+        result = utils::File{p}.readAllString();
     } else {
         char key[33];
         char* out = key;
@@ -176,6 +176,39 @@ inline std::string getHomeDir()
 #endif
     return homeDir;
 }
+
+inline std::string getTempDir()
+{
+    char buffer[2048];
+#ifdef _WIN32
+    if (GetTempPathA(sizeof(buffer), buffer) == 0)
+        throw io_exception{"Could not get temporary directory"};
+#else
+    const char* tmpdir = getenv("TMPDIR");
+    if (!tmpdir)
+        tmpdir = P_tmpdir;
+    if (!tmpdir)
+        tmpdir = "/tmp/";
+    strcpy(buffer, tmpdir);
+#endif
+    return buffer;
+}
+
+inline void copyFileToFrom(utils::path const& target, utils::path const& source)
+{
+    utils::remove(target);
+    std::ifstream src(source, std::ios::binary);
+    if (src.is_open()) {
+        std::ofstream dst(target, std::ios::binary);
+        if (!dst.is_open()) {
+            throw io_exception("Could not write: "s + target.string());
+        }
+        dst << src.rdbuf();
+        return;
+    }
+    throw io_exception("Could not read: "s + source.string());
+}
+
 
 static inline const uint32_t crctab[] = {
     0x0,        0x04c11db7, 0x09823b6e, 0x0d4326d9, 0x130476dc, 0x17c56b6b,
@@ -224,7 +257,7 @@ static inline const uint32_t crctab[] = {
 
 #define COMPUTE(var, ch) (var) = (var) << 8 ^ crctab[(var) >> 24 ^ (ch)]
 
-uint32_t crc32(const uint32_t* data, int size) {
+inline uint32_t crc32(const uint32_t* data, int size) {
     uint32_t crc = 0;
     while (size--) {
         uint32_t v = *data++;
@@ -237,11 +270,11 @@ uint32_t crc32(const uint32_t* data, int size) {
     return crc;
 }
 
-void sleepms(unsigned ms) {
+inline void sleepms(unsigned ms) {
     std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 }
 
-void sleepus(unsigned us) {
+inline void sleepus(unsigned us) {
     std::this_thread::sleep_for(std::chrono::microseconds(us));
 }
 

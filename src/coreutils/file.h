@@ -109,7 +109,7 @@ public:
         return read(&target[0], target.size() * sizeof(T));
     }
 
-    std::string readAll()
+    std::string readAllString()
     {
         fseek(fp, 0, SEEK_END);
         size_t sz = ftell(fp);
