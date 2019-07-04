@@ -205,6 +205,15 @@ inline std::string getTempDir()
     return buffer;
 }
 
+inline void replace_char(char* s, char c, char r) {
+    while (*s) {
+        if (*s == c) *s = r;
+        s++;
+    }
+}
+
+inline void replace_char(std::string& s, char c, char r) { replace_char(&s[0], c, r); } 
+
 inline std::string getCacheDir(std::string const& appName)
 {
     auto home = getHomeDir();
