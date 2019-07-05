@@ -48,7 +48,7 @@ inline std::string spaces(int n)
 inline std::string indent(std::string const& text, int n)
 {
     std::vector<std::string> target;
-    auto v = split(text, "\n");
+    auto v = split(text, '\n');
     std::transform(v.begin(), v.end(), std::back_inserter(target),
                    [prefix = spaces(n)](auto const& s) { return prefix + s; });
     return join(target.begin(), target.end(), "\n");
