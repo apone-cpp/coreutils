@@ -5,6 +5,7 @@
 #include <vector>
 
 #ifdef USE_FMT
+
 #    include <fmt/format.h>
 #    include <fmt/printf.h>
 
@@ -24,6 +25,8 @@ template <class... A> void println(const std::string& fmt = "", A&&... args)
 {
     fmt::printf(fmt + "\n", std::forward<A>(args)...);
 }
+
+} // namespace utils
 
 #else
 
