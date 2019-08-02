@@ -222,7 +222,7 @@ inline std::string getCacheDir(std::string const& appName)
 #endif
     auto d = home + "/.cache/" + appName;
     // LOGD("CACHE: %s", d);
-    if (!exists(d))
+    if (!exists(utils::path(d)))
         utils::create_directories(d);
     return d;
 }

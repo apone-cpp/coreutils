@@ -6,16 +6,12 @@
 #include <string>
 #include <vector>
 
+#include <coreutils/log.h>
+
 #include <sys/stat.h>
 
 #ifdef _WIN32
 #    include <direct.h>
-#define PATH_MAX 1024
-#endif
-
-#ifdef __unix__
-#    include <cstdlib>
-#    include <limits.h>
 #endif
 
 namespace utils {
@@ -27,6 +23,7 @@ namespace utils {
  * component.
  *
  */
+
 class path
 {
     enum Format
@@ -49,11 +46,11 @@ class path
     {
         size_t start = 0;
         isRelative = true;
-        if (name[0] == '/') {
+        if (name.size() > 0 && name[0] == '/') {
             format = Format::Unix;
             start++;
             isRelative = false;
-        } else if (name[1] == ':') {
+        } else if (name.size() > 1 && name[1] == ':') {
             format = Format::Win;
             segments.push_back(name.substr(0, 2));
             hasRootDir = true;
@@ -90,6 +87,8 @@ public:
     path(std::string const& name) { init(name); }
     path(const char* name) { init(name); }
 
+    void set_relative(bool rel) { isRelative = rel; }
+
     bool is_absolute() const { return !isRelative; }
     bool is_relative() const { return isRelative; }
 
@@ -109,10 +108,10 @@ public:
 
     path& operator/=(path const& p)
     {
-        if (p.is_absolute())
+        if (p.is_absolute()) {
             *this = p;
-        else {
-            if (segment(-1) == "")
+        } else {
+            if (!empty() && segment(-1) == "")
                 segments.resize(segments.size() - 1);
             segments.insert(std::end(segments), std::begin(p.segments),
                             std::end(p.segments));
@@ -235,6 +234,7 @@ inline void create_directory(path const& p)
 inline void create_directories(path const& p)
 {
     path dir;
+    dir.set_relative(p.is_relative());
     for (const auto& part : p) {
         dir = dir / part;
         create_directory(dir);
@@ -257,7 +257,7 @@ inline bool copy(path const& source, path const& target)
 inline path absolute(path const& name)
 {
     std::string resolvedPath;
-    char* resolvedPathRaw = new char[PATH_MAX];
+    char* resolvedPathRaw = new char[16384];
 #ifdef _WIN32
     char* result = _fullpath(resolvedPathRaw, name.string().c_str(), PATH_MAX);
 #else
@@ -265,6 +265,8 @@ inline path absolute(path const& name)
 #endif
     if (result)
         resolvedPath = resolvedPathRaw;
+    else
+        resolvedPath = name;
     delete[] resolvedPathRaw;
 
     return path(resolvedPath);
