@@ -123,12 +123,23 @@ inline std::string path_filename(const std::string& name)
 
 inline std::string path_extension(const std::string& name)
 {
-    return utils::path(name).extension();
+    auto ext = utils::path(name).extension();
+    if(ext.empty()) return "";
+    return ext.substr(1);
 }
 
 inline std::string path_suffix(const std::string& name)
 {
     return path_extension(name);
+}
+
+inline std::string path_prefix(const std::string& name)
+{
+    auto file_name = utils::path(name).filename();
+    auto dotPos = name.find('.');
+    if (dotPos == std::string::npos)
+        return "";
+    return name.substr(0, dotPos);
 }
 
 // std::string path_prefix(const std::string& name) {
@@ -162,6 +173,13 @@ inline uint64_t currentTime()
 {
     auto t = std::chrono::system_clock::now();
     return static_cast<uint64_t>(std::chrono::system_clock::to_time_t(t));
+}
+
+inline std::string getCurrentDir()
+{
+    std::array<char, 16384> buf;
+    ::getcwd(buf.data(), buf.size());
+    return std::string(buf.data());
 }
 
 inline std::string getHomeDir()
@@ -205,14 +223,19 @@ inline std::string getTempDir()
     return buffer;
 }
 
-inline void replace_char(char* s, char c, char r) {
+inline void replace_char(char* s, char c, char r)
+{
     while (*s) {
-        if (*s == c) *s = r;
+        if (*s == c)
+            *s = r;
         s++;
     }
 }
 
-inline void replace_char(std::string& s, char c, char r) { replace_char(&s[0], c, r); } 
+inline void replace_char(std::string& s, char c, char r)
+{
+    replace_char(&s[0], c, r);
+}
 
 inline std::string getCacheDir(std::string const& appName)
 {
@@ -316,6 +339,39 @@ inline void sleepus(unsigned us)
 template <typename T> inline T clamp(T x, T a0, T a1)
 {
     return std::min(std::max(x, a0), a1);
+}
+
+#include <dirent.h>
+
+inline void listFiles(const utils::path& root, std::vector<utils::path>& result,
+               bool includeDirs, bool recurse)
+{
+    DIR* dir;
+    struct dirent* ent;
+    if ((dir = opendir(root.string().c_str())) != nullptr) {
+        while ((ent = readdir(dir)) != nullptr) {
+            char* p = ent->d_name;
+            if (p[0] == '.' && (p[1] == 0 || (p[1] == '.' && p[2] == 0)))
+                continue;
+            auto f = root / ent->d_name;
+            if (ent->d_type == DT_DIR) {
+                if (includeDirs)
+                    result.push_back(f);
+                if (recurse)
+                    listFiles(f, result, includeDirs, recurse);
+            } else
+                result.push_back(f);
+        }
+        closedir(dir);
+    }
+}
+
+inline std::vector<path> listFiles(utils::path const& root, bool includeDirs,
+                                   bool recurse)
+{
+    std::vector<utils::path> rc;
+    listFiles(root, rc, includeDirs, recurse);
+    return rc;
 }
 
 } // namespace utils
