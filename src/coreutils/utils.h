@@ -135,11 +135,11 @@ inline std::string path_suffix(const std::string& name)
 
 inline std::string path_prefix(const std::string& name)
 {
-    auto file_name = utils::path(name).filename();
-    auto dotPos = name.find('.');
+    auto file_name = utils::path(name).filename().string();
+    auto dotPos = file_name.find('.');
     if (dotPos == std::string::npos)
         return "";
-    return name.substr(0, dotPos);
+    return file_name.substr(0, dotPos);
 }
 
 // std::string path_prefix(const std::string& name) {
@@ -175,16 +175,16 @@ inline uint64_t currentTime()
     return static_cast<uint64_t>(std::chrono::system_clock::to_time_t(t));
 }
 
-inline std::string getCurrentDir()
+inline path get_current_dir()
 {
     std::array<char, 16384> buf;
     ::getcwd(buf.data(), buf.size());
-    return std::string(buf.data());
+    return {buf.data()};
 }
 
-inline std::string getHomeDir()
+inline path get_home_dir()
 {
-    std::string homeDir;
+    path homeDir;
 #if _WIN32
     char* userProfile = getenv("USERPROFILE");
     if (userProfile == nullptr) {
@@ -197,16 +197,16 @@ inline std::string getHomeDir()
             return "";
         }
 
-        homeDir = std::string(homeDrive) + homePath;
+        homeDir = path(homeDrive + homePath);
     } else
-        homeDir = std::string(userProfile);
+        homeDir = path(userProfile);
 #else
-    homeDir = std::string(getenv("HOME"));
+    homeDir = path(getenv("HOME"));
 #endif
     return homeDir;
 }
 
-inline std::string getTempDir()
+inline path get_temp_dir()
 {
     char buffer[2048];
 #ifdef _WIN32
@@ -220,7 +220,7 @@ inline std::string getTempDir()
         tmpdir = "/tmp/";
     strcpy(buffer, tmpdir);
 #endif
-    return buffer;
+    return {buffer};
 }
 
 inline void replace_char(char* s, char c, char r)
@@ -237,15 +237,15 @@ inline void replace_char(std::string& s, char c, char r)
     replace_char(&s[0], c, r);
 }
 
-inline std::string getCacheDir(std::string const& appName)
+inline path get_cache_dir(std::string const& appName)
 {
-    auto home = getHomeDir();
-#ifdef _WIN32
+    auto home = get_home_dir();
+#ifdef _WIN32_NOT_NEEDED
     replace_char(home, '\\', '/');
 #endif
-    auto d = home + "/.cache/" + appName;
+    auto d = home  / ".cache" / appName;
     // LOGD("CACHE: %s", d);
-    if (!exists(utils::path(d)))
+    if (!exists(d))
         utils::create_directories(d);
     return d;
 }

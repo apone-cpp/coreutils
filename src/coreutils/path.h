@@ -6,8 +6,6 @@
 #include <string>
 #include <vector>
 
-#include <coreutils/log.h>
-
 #include <sys/stat.h>
 
 #ifdef _WIN32
@@ -33,30 +31,26 @@ class path
         Unix
     };
     Format format = Format::Unknown;
-    bool isRelative = true;
+    bool relative_ = true;
     bool hasRootDir = false;
     std::vector<std::string> segments;
-    static std::string& empty_string()
-    {
-        static std::string e = "";
-        return e;
-    }
+    mutable std::string internal_name;
 
     void init(std::string const& name)
     {
         size_t start = 0;
-        isRelative = true;
+        relative_ = true;
         if (name.size() > 0 && name[0] == '/') {
             format = Format::Unix;
             start++;
-            isRelative = false;
+            relative_ = false;
         } else if (name.size() > 1 && name[1] == ':') {
             format = Format::Win;
             segments.push_back(name.substr(0, 2));
             hasRootDir = true;
             start += 2;
             if (name[2] == '\\' || name[2] == '/') {
-                isRelative = false;
+                relative_ = false;
                 start++;
             }
         }
@@ -87,10 +81,10 @@ public:
     path(std::string const& name) { init(name); }
     path(const char* name) { init(name); }
 
-    void set_relative(bool rel) { isRelative = rel; }
+    void set_relative(bool rel) { relative_ = rel; }
 
-    bool is_absolute() const { return !isRelative; }
-    bool is_relative() const { return isRelative; }
+    bool is_absolute() const { return !relative_; }
+    bool is_relative() const { return relative_; }
 
     path& operator=(const char* name)
     {
@@ -123,7 +117,7 @@ public:
     path filename() const
     {
         path p = *this;
-        p.isRelative = true;
+        p.relative_ = true;
         if (!empty()) {
             p.segments[0] = segment(-1);
             p.segments.resize(1);
@@ -180,22 +174,24 @@ public:
 
     std::string string() const
     {
-        std::string target;
+        internal_name.clear();
         auto l = (int)segments.size();
         int i = 0;
         std::string separator = (format == Format::Win ? "\\" : "/");
-        if (!isRelative) {
+        if (!relative_) {
             if (hasRootDir)
-                target = segment(i++);
-            target += separator;
+                internal_name = segment(i++);
+            internal_name += separator;
         }
         for (; i < l; i++) {
-            target = target + segment(i);
+            internal_name = internal_name + segment(i);
             if (i != l - 1)
-                target += separator;
+                internal_name += separator;
         }
-        return target;
+        return internal_name;
     }
+
+    char const* c_str() const { return string().c_str(); }
 
     operator std::string() const { return string(); }
 

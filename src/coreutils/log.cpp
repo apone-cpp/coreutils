@@ -54,6 +54,7 @@ void log(Level level, const std::string& text)
 {
 
     static const char* levelChar = "VDIWE";
+    return;
 
     if (level >= defaultLevel) {
         const char* cptr = text.c_str();
