@@ -20,6 +20,10 @@
 #include <utility>
 #include <vector>
 
+#ifdef __APPLE__
+#    include <mach-o/dyld.h>
+#endif
+
 #ifdef _WIN32
 #    define WIN32_LEAN_AND_MEAN
 #    include <windows.h>
@@ -124,7 +128,8 @@ inline std::string path_filename(const std::string& name)
 inline std::string path_extension(const std::string& name)
 {
     auto ext = utils::path(name).extension();
-    if(ext.empty()) return "";
+    if (ext.empty())
+        return "";
     return ext.substr(1);
 }
 
@@ -243,11 +248,61 @@ inline path get_cache_dir(std::string const& appName)
 #ifdef _WIN32_NOT_NEEDED
     replace_char(home, '\\', '/');
 #endif
-    auto d = home  / ".cache" / appName;
+    auto d = home / ".cache" / appName;
     // LOGD("CACHE: %s", d);
     if (!exists(d))
         utils::create_directories(d);
     return d;
+}
+
+inline path get_exe_dir()
+{
+    path exeDir;
+    char buf[1024];
+#if defined _WIN32
+    GetModuleFileName(nullptr, buf, sizeof(buf) - 1);
+    exeDir = utils::path(buf).parent_path();
+#elif defined __APPLE__
+    uint32_t size = sizeof(buf);
+    if (_NSGetExecutablePath(buf, &size) == 0) {
+        exeDir = utils::path(buf).parent_path();
+    }
+#else
+    int rc = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+    if (rc >= 0) {
+        buf[rc] = 0;
+        exeDir = utils::path(buf).parent_path();
+    }
+#endif
+    return exeDir;
+}
+
+static constexpr char PathSeparator = ';';
+
+inline std::string make_search_path(std::vector<path> path_list, bool resolve)
+{
+    std::string result = "";
+    std::string sep = "";
+    for (const path& f : path_list) {
+        if (resolve)
+            result = result + sep + absolute(f).string();
+        else
+            result = result + sep + f.string();
+        sep = std::string(1, PathSeparator);
+    }
+    return result;
+}
+
+inline path find_path(const std::string& search_path, const std::string name)
+{
+    if (name.empty())
+        return "";
+    for (std::string part : split(search_path, PathSeparator)) {
+        auto f = utils::path(part) / name;
+        if (exists(f))
+            return f;
+    }
+    return "";
 }
 
 inline void copyFileToFrom(utils::path const& target, utils::path const& source)
@@ -344,7 +399,7 @@ template <typename T> inline T clamp(T x, T a0, T a1)
 #include <dirent.h>
 
 inline void listFiles(const utils::path& root, std::vector<utils::path>& result,
-               bool includeDirs, bool recurse)
+                      bool includeDirs, bool recurse)
 {
     DIR* dir;
     struct dirent* ent;
