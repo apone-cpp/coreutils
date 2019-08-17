@@ -16,22 +16,9 @@ enum Level
     Off = 100
 };
 
-#ifdef COREUTILS_LOGGING_SIMPLE
-
-inline void log2(const char* fn, int line, const Level level,
-                 const std::string& text)
-{
-    if (level >= Info)
-        printf("[%s:%d] %s\n", fn, line, text.c_str());
-}
-
-#else
-
 void log(const std::string& text);
 void log(const Level level, const std::string& text);
 void log2(const char* fn, int line, const Level level, const std::string& text);
-
-#endif
 
 template <class... A> void log(const std::string& fmt, const A&... args)
 {

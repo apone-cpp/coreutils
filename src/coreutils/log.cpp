@@ -54,6 +54,7 @@ void log(Level level, const std::string& text)
 {
 
     static const char* levelChar = "VDIWE";
+    return;
 
     if (level >= defaultLevel) {
         const char* cptr = text.c_str();
@@ -72,13 +73,15 @@ void log(Level level, const std::string& text)
         time_t now = time(nullptr);
         struct tm* t = localtime(&now);
         string ts;
+#ifdef USE_FMT
         if (threadCount > 1)
             ts = utils::format("%c: %02d:%02d.%02d -#%d- ", levelChar[level],
                                t->tm_hour, t->tm_min, t->tm_sec, threadId);
         else
             ts = utils::format("%c: %02d:%02d.%02d - ", levelChar[level],
                                t->tm_hour, t->tm_min, t->tm_sec);
-
+#else
+#endif
         fwrite(ts.c_str(), 1, ts.length(), logFile);
         fwrite(text.c_str(), 1, text.length(), logFile);
         char c = text[text.length() - 1];

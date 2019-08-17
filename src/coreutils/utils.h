@@ -20,6 +20,10 @@
 #include <utility>
 #include <vector>
 
+#ifdef __APPLE__
+#    include <mach-o/dyld.h>
+#endif
+
 #ifdef _WIN32
 #    define WIN32_LEAN_AND_MEAN
 #    include <windows.h>
@@ -123,12 +127,24 @@ inline std::string path_filename(const std::string& name)
 
 inline std::string path_extension(const std::string& name)
 {
-    return utils::path(name).extension();
+    auto ext = utils::path(name).extension();
+    if (ext.empty())
+        return "";
+    return ext.substr(1);
 }
 
 inline std::string path_suffix(const std::string& name)
 {
     return path_extension(name);
+}
+
+inline std::string path_prefix(const std::string& name)
+{
+    auto file_name = utils::path(name).filename().string();
+    auto dotPos = file_name.find('.');
+    if (dotPos == std::string::npos)
+        return "";
+    return file_name.substr(0, dotPos);
 }
 
 // std::string path_prefix(const std::string& name) {
@@ -164,9 +180,16 @@ inline uint64_t currentTime()
     return static_cast<uint64_t>(std::chrono::system_clock::to_time_t(t));
 }
 
-inline std::string getHomeDir()
+inline path get_current_dir()
 {
-    std::string homeDir;
+    std::array<char, 16384> buf;
+    ::getcwd(buf.data(), buf.size());
+    return {buf.data()};
+}
+
+inline path get_home_dir()
+{
+    path homeDir;
 #if _WIN32
     char* userProfile = getenv("USERPROFILE");
     if (userProfile == nullptr) {
@@ -179,16 +202,16 @@ inline std::string getHomeDir()
             return "";
         }
 
-        homeDir = std::string(homeDrive) + homePath;
+        homeDir = path(homeDrive + homePath);
     } else
-        homeDir = std::string(userProfile);
+        homeDir = path(userProfile);
 #else
-    homeDir = std::string(getenv("HOME"));
+    homeDir = path(getenv("HOME"));
 #endif
     return homeDir;
 }
 
-inline std::string getTempDir()
+inline path get_temp_dir()
 {
     char buffer[2048];
 #ifdef _WIN32
@@ -202,29 +225,84 @@ inline std::string getTempDir()
         tmpdir = "/tmp/";
     strcpy(buffer, tmpdir);
 #endif
-    return buffer;
+    return {buffer};
 }
 
-inline void replace_char(char* s, char c, char r) {
+inline void replace_char(char* s, char c, char r)
+{
     while (*s) {
-        if (*s == c) *s = r;
+        if (*s == c)
+            *s = r;
         s++;
     }
 }
 
-inline void replace_char(std::string& s, char c, char r) { replace_char(&s[0], c, r); } 
-
-inline std::string getCacheDir(std::string const& appName)
+inline void replace_char(std::string& s, char c, char r)
 {
-    auto home = getHomeDir();
-#ifdef _WIN32
+    replace_char(&s[0], c, r);
+}
+
+inline path get_cache_dir(std::string const& appName)
+{
+    auto home = get_home_dir();
+#ifdef _WIN32_NOT_NEEDED
     replace_char(home, '\\', '/');
 #endif
-    auto d = home + "/.cache/" + appName;
+    auto d = home / ".cache" / appName;
     // LOGD("CACHE: %s", d);
     if (!exists(d))
         utils::create_directories(d);
     return d;
+}
+
+inline path get_exe_dir()
+{
+    path exeDir;
+    char buf[1024];
+#if defined _WIN32
+    GetModuleFileName(nullptr, buf, sizeof(buf) - 1);
+    exeDir = utils::path(buf).parent_path();
+#elif defined __APPLE__
+    uint32_t size = sizeof(buf);
+    if (_NSGetExecutablePath(buf, &size) == 0) {
+        exeDir = utils::path(buf).parent_path();
+    }
+#else
+    int rc = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+    if (rc >= 0) {
+        buf[rc] = 0;
+        exeDir = utils::path(buf).parent_path();
+    }
+#endif
+    return exeDir;
+}
+
+static constexpr char PathSeparator = ';';
+
+inline std::string make_search_path(std::vector<path> path_list, bool resolve)
+{
+    std::string result = "";
+    std::string sep = "";
+    for (const path& f : path_list) {
+        if (resolve)
+            result = result + sep + absolute(f).string();
+        else
+            result = result + sep + f.string();
+        sep = std::string(1, PathSeparator);
+    }
+    return result;
+}
+
+inline path find_path(const std::string& search_path, const std::string name)
+{
+    if (name.empty())
+        return "";
+    for (std::string part : split(search_path, PathSeparator)) {
+        auto f = utils::path(part) / name;
+        if (exists(f))
+            return f;
+    }
+    return "";
 }
 
 inline void copyFileToFrom(utils::path const& target, utils::path const& source)
@@ -316,6 +394,39 @@ inline void sleepus(unsigned us)
 template <typename T> inline T clamp(T x, T a0, T a1)
 {
     return std::min(std::max(x, a0), a1);
+}
+
+#include <dirent.h>
+
+inline void listFiles(const utils::path& root, std::vector<utils::path>& result,
+                      bool includeDirs, bool recurse)
+{
+    DIR* dir;
+    struct dirent* ent;
+    if ((dir = opendir(root.string().c_str())) != nullptr) {
+        while ((ent = readdir(dir)) != nullptr) {
+            char* p = ent->d_name;
+            if (p[0] == '.' && (p[1] == 0 || (p[1] == '.' && p[2] == 0)))
+                continue;
+            auto f = root / ent->d_name;
+            if (ent->d_type == DT_DIR) {
+                if (includeDirs)
+                    result.push_back(f);
+                if (recurse)
+                    listFiles(f, result, includeDirs, recurse);
+            } else
+                result.push_back(f);
+        }
+        closedir(dir);
+    }
+}
+
+inline std::vector<path> listFiles(utils::path const& root, bool includeDirs,
+                                   bool recurse)
+{
+    std::vector<utils::path> rc;
+    listFiles(root, rc, includeDirs, recurse);
+    return rc;
 }
 
 } // namespace utils
