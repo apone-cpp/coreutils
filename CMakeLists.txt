@@ -25,7 +25,7 @@ set_property(TARGET coreutils PROPERTY POSITION_INDEPENDENT_CODE ON)
 set_property(TARGET coreutils PROPERTY CXX_STANDARD 14)
 set_property(TARGET coreutils PROPERTY CXX_STANDARD_REQUIRED ON)
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../catch2")
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     add_subdirectory(../catch2 catch2)
     add_executable(coreutils.test src/testmain.cpp src/coreutils/resources.test.cpp src/coreutils/path.test.cpp src/coreutils/split.test.cpp
         src/coreutils/file.test.cpp)
