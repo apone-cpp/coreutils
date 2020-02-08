@@ -396,6 +396,21 @@ template <typename T> inline T clamp(T x, T a0, T a1)
     return std::min(std::max(x, a0), a1);
 }
 
+template <typename T> constexpr T bswap(T const&t)
+{}
+
+
+template <> constexpr uint32_t bswap(uint32_t const&t)
+{
+    return __builtin_bswap32(t);
+}
+
+template <> constexpr uint64_t bswap(uint64_t const&t)
+{
+    return __builtin_bswap64(t);
+}
+
+
 #include <dirent.h>
 
 inline void listFiles(const utils::path& root, std::vector<utils::path>& result,

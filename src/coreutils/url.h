@@ -2931,7 +2931,7 @@ static inline uint16_t decode(const std::string& symbol)
     return '?';
 }
 
-inline std::string htmldecode(const std::string& s, bool stripTags)
+inline std::string htmldecode(const std::string& s, bool stripTags = false)
 {
     char target[s.length() + 1];
     auto* ptr = (unsigned char*)target;
