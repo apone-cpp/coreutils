@@ -40,6 +40,10 @@ class path
     {
         size_t start = 0;
         relative_ = true;
+        hasRootDir = false;
+        segments.clear();
+        format = Format::Unknown;
+
         if (name.size() > 0 && name[0] == '/') {
             format = Format::Unix;
             start++;
@@ -172,7 +176,7 @@ public:
 
     auto end() const { return segments.end(); }
 
-    std::string string() const
+    std::string const& string() const
     {
         internal_name.clear();
         auto l = (int)segments.size();
@@ -193,7 +197,7 @@ public:
 
     char const* c_str() const { return string().c_str(); }
 
-    operator std::string() const { return string(); }
+    operator std::string const&() const { return string(); }
 
     bool operator==(const char* other) const
     {
