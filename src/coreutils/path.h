@@ -280,6 +280,10 @@ inline path absolute(path const& name)
     char* result = realpath(name.string().c_str(), resolvedPathRaw);
 #endif
     resolvedPath = (result != nullptr) ? resolvedPathRaw : name;
+    if (result)
+        resolvedPath = resolvedPathRaw;
+    else
+        resolvedPath = name;
     delete[] resolvedPathRaw;
 
     return path(resolvedPath);

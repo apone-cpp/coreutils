@@ -12,10 +12,10 @@ using namespace std::string_literals;
 
 namespace utils {
 
-template <typename ITERATOR, typename CHAR = char>
-std::basic_string<CHAR> join(ITERATOR begin, ITERATOR end, const CHAR separator)
+template <typename ITERATOR, typename Char = char>
+std::basic_string<Char> join(ITERATOR begin, ITERATOR end, const Char separator)
 {
-    std::basic_ostringstream<CHAR> ss;
+    std::basic_ostringstream<Char> ss;
 
     if (begin != end) {
         ss << *begin++;
@@ -28,11 +28,11 @@ std::basic_string<CHAR> join(ITERATOR begin, ITERATOR end, const CHAR separator)
     return ss.str();
 }
 
-template <typename ITERATOR, typename CHAR = char>
-std::basic_string<CHAR> join(ITERATOR begin, ITERATOR end,
-                             std::basic_string<CHAR> const& separator = ", ")
+template <typename ITERATOR, typename Char = char>
+std::basic_string<Char> join(ITERATOR begin, ITERATOR end,
+                             std::basic_string<Char> const& separator = ", ")
 {
-    std::basic_ostringstream<CHAR> ss;
+    std::basic_ostringstream<Char> ss;
 
     if (begin != end) {
         ss << *begin++;
@@ -45,11 +45,11 @@ std::basic_string<CHAR> join(ITERATOR begin, ITERATOR end,
     return ss.str();
 }
 
-template <typename ITERATOR, typename CHAR = char>
-std::basic_string<CHAR> join(ITERATOR begin, ITERATOR end,
-                             const CHAR* separator)
+template <typename ITERATOR, typename Char = char>
+std::basic_string<Char> join(ITERATOR begin, ITERATOR end,
+                             const Char* separator)
 {
-    std::basic_ostringstream<CHAR> ss;
+    std::basic_ostringstream<Char> ss;
 
     if (begin != end) {
         ss << *begin++;
@@ -79,14 +79,14 @@ std::string join(const std::string& sep, const ARGS&... args)
     return join(v.begin(), v.end(), sep);
 }
 
-template <typename CHAR> class StringSplit
+template <typename Char> class StringSplit
 {
-    std::basic_string<CHAR> source;
-    std::vector<CHAR*> pointers;
-    CHAR* ptr;
+    std::basic_string<Char> source;
+    std::vector<Char*> pointers;
+    Char* ptr;
     const int minSplits = -1;
 
-    void split(const std::basic_string<CHAR> delim)
+    void split(const std::basic_string<Char> delim)
     {
         const auto dz = delim.length();
         while (true) {
@@ -102,14 +102,14 @@ template <typename CHAR> class StringSplit
     }
 
 public:
-    StringSplit(std::basic_string<CHAR> text,
-                std::basic_string<CHAR> const& delim, int minSplits = -1)
+    StringSplit(std::basic_string<Char> text,
+                std::basic_string<Char> const& delim, int minSplits = -1)
         : source(std::move(text)), ptr(&source[0]), minSplits(minSplits)
     {
         split(delim);
     }
 
-    StringSplit(std::basic_string<CHAR> text, const char delim,
+    StringSplit(std::basic_string<Char> text, const char delim,
                 int minSplits = -1)
         : source(std::move(text)), ptr(&source[0]), minSplits(minSplits)
     {
@@ -124,33 +124,33 @@ public:
     {
         return n < size() ? pointers[n] : nullptr;
     }
-    std::basic_string<CHAR> getString(unsigned n) const
+    std::basic_string<Char> getString(unsigned n) const
     {
         static std::string empty;
-        return n < size() ? std::basic_string<CHAR>(pointers[n]) : empty;
+        return n < size() ? std::basic_string<Char>(pointers[n]) : empty;
     }
     operator bool() const { return minSplits < 0 || (int)size() >= minSplits; }
 
-    operator std::vector<std::basic_string<CHAR>>() const
+    operator std::vector<std::basic_string<Char>>() const
     {
-        std::vector<std::basic_string<CHAR>> result;
+        std::vector<std::basic_string<Char>> result;
         std::copy(pointers.begin(), pointers.end(), std::back_inserter(result));
         return result;
     }
 };
 
-template <typename CHAR, typename S>
-inline StringSplit<CHAR> split(std::basic_string<CHAR> const& s, S const& delim,
+template <typename Char, typename S>
+inline StringSplit<Char> split(std::basic_string<Char> const& s, S const& delim,
                                int minSplits = -1)
 {
-    return StringSplit<CHAR>(s, delim, minSplits);
+    return StringSplit<Char>(s, delim, minSplits);
 }
 
-template <typename CHAR, typename S>
-inline StringSplit<CHAR> split(const CHAR* const& s, S const& delim,
+template <typename Char, typename S>
+inline StringSplit<Char> split(const Char* const& s, S const& delim,
                                int minSplits = -1)
 {
-    return StringSplit<CHAR>(std::basic_string<CHAR>(s), delim, minSplits);
+    return StringSplit<Char>(std::basic_string<Char>(s), delim, minSplits);
 }
 
 template <size_t... Is>

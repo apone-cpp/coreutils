@@ -80,6 +80,28 @@ public:
         cv.notify_all();
     }
 
+    void insert(const T* source, int count)
+    {
+        using namespace std::chrono_literals;
+        if (quitting)
+            return;
+
+        std::unique_lock<std::mutex> lock(m);
+        while (left() < count && !quitting) {
+            if (wantToWrite == 0)
+                wantToWrite = count;
+            cv.wait_for(lock, 100ms,
+                        [=] { return left() >= count || quitting; });
+        }
+        wantToWrite = 0;
+        if (quitting)
+            return;
+
+        memmove(buffer + count, buffer, sizeof(T) * filled()); 
+        memcpy(buffer, source, sizeof(T) * count);
+        bufPtr += count;
+    }
+
     void put(const T* source, int count)
     {
         using namespace std::chrono_literals;
@@ -163,7 +185,7 @@ public:
             if (count > f)
                 count = f;
 
-            fn(buffer);
+            count = fn(buffer, count);
             if (f > count)
                 memmove(buffer, &buffer[count], (f - count) * sizeof(T));
             bufPtr = &buffer[f - count];

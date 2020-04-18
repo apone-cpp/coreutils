@@ -5,28 +5,30 @@
 
 using namespace utils;
 
-TEST_CASE("Create and read file", "[file]") {
-	File{"dummy", File::Write}.write<uint32_t>(0x12345678);
-	REQUIRE(File{"dummy"}.read<uint32_t>() == 0x12345678);
-	utils::remove("dummy");
+TEST_CASE("Create and read file", "[file]")
+{
+    File{"dummy", File::Write}.write<uint32_t>(0x12345678);
+    REQUIRE(File{"dummy"}.read<uint32_t>() == 0x12345678);
+    utils::remove("dummy");
 }
 
-TEST_CASE("FILE conversion", "[file]") {
-	File f{"dummy", File::Write};
-	fwrite("testing", 1, 8, f);
-	f.writeString("write");
-	f.close();
+TEST_CASE("FILE conversion", "[file]")
+{
+    File f{"dummy", File::Write};
+    fwrite("testing", 1, 8, f); // Include 0-terminator
+    f.writeString("write");     // Does not include 0-terminator
+    f.close();
 
-	FILE *fp = fopen("dummy", "rb");
-	File f2{fp};
-	auto s = f2.readString();
-	REQUIRE(s == "testing");
-	char buffer[16];
-	REQUIRE(fread(buffer, 1, sizeof(buffer), fp) == 6);
-	REQUIRE(strcmp(buffer, "write") == 0);
-	f2.close();
+    FILE* fp = fopen("dummy", "rb");
+    File f2{fp};
+    auto s = f2.readString();
+    REQUIRE(s == "testing");
+    char buffer[16];
+    REQUIRE(fread(buffer, 1, sizeof(buffer), fp) == 5);
+    REQUIRE(strcmp(buffer, "write") == 0);
+    f2.close();
 
-	utils::remove("dummy");
+    utils::remove("dummy");
 }
 
 /* TEST_CASE("List files", "[file]") { */
@@ -39,22 +41,24 @@ TEST_CASE("FILE conversion", "[file]") {
 
 /* 	int total = 0; */
 /* 	listRecursive("path1", */
-/* 	              [&total](auto const &name) { total += File{name}.read<uint8_t>(); }); */
+/* 	              [&total](auto const &name) { total +=
+ * File{name}.read<uint8_t>(); }); */
 /* 	REQUIRE(total == 15); */
 
 /* 	fs::remove_all("path1"); */
 /* } */
 
-TEST_CASE("Read lines", "[file]") {
-	File f{"lines.txt", File::Write};
-	for(int i = 0; i < 100; i++)
-		f.writeln(std::to_string(i));
-	f.close();
+TEST_CASE("Read lines", "[file]")
+{
+    File f{"lines.txt", File::Write};
+    for (int i = 0; i < 100; i++)
+        f.writeln(std::to_string(i));
+    f.close();
 
-	int i = 0;
-	for(auto const &line : File{"lines.txt"}.lines()) {
-		REQUIRE(i++ == std::stol(line));
-	}
+    int i = 0;
+    for (auto const& line : File{"lines.txt"}.lines()) {
+        REQUIRE(i++ == std::stol(line));
+    }
 
-	utils::remove("lines.txt");
+    utils::remove("lines.txt");
 }
