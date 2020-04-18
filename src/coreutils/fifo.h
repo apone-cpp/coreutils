@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <mutex>
+#include <thread>
 
 namespace utils {
 
@@ -247,6 +248,35 @@ private:
     int lastSoundPos;
     int position;
 };
+
+template <typename T, size_t SIZE> struct Ring
+{
+    T data[SIZE];
+    std::atomic<size_t> read_pos{0};
+    std::atomic<size_t> write_pos{0};
+
+    void write(T const* source, size_t n)
+    {
+        while (write_pos + n - read_pos > SIZE) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        for (size_t i = 0; i < n; i++)
+            data[(write_pos + i) % SIZE] = source[i];
+        write_pos += n;
+    }
+
+    size_t read(T* target, size_t n)
+    {
+        auto left = write_pos - read_pos;
+        if (left < n)
+            n = left;
+        for (size_t i = 0; i < n; i++)
+            target[i] = data[(read_pos + i) % SIZE];
+        read_pos += n;
+        return n;
+    }
+};
+
 
 } // namespace utils
 
