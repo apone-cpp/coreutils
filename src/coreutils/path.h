@@ -303,7 +303,7 @@ inline std::vector<path> listFiles(path const& root)
 }
 
 inline void listRecursive(const path& root, std::vector<path>& result,
-                         bool includeDirs = false)
+                          bool includeDirs = false)
 {
     DIR* dir;
     struct dirent* ent;
@@ -328,12 +328,12 @@ inline void listRecursive(const path& root, std::vector<path>& result,
     }
 } // namespace utils
 
-inline std::vector<path> listRecursive(const path& root, bool includeDirs = false)
+inline std::vector<path> listRecursive(const path& root,
+                                       bool includeDirs = false)
 {
     std::vector<path> rc;
     listRecursive(root, rc, includeDirs);
     return rc;
 }
-
 
 } // namespace utils
