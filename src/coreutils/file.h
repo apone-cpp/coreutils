@@ -216,6 +216,10 @@ public:
         }
     }
 
+    void write(std::vector<uint8_t> const& data) const {
+        write(data.data(), data.size());
+    }
+
     template <typename T>
     size_t write(const T* target, size_t bytes) const noexcept
     {

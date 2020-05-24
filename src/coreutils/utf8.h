@@ -99,7 +99,7 @@ inline std::string utf8_encode(const std::string& txt)
 {
     std::string out;
     const uint8_t* s = (uint8_t*)txt.c_str();
-    for (int i = 0; i < txt.length(); i++) {
+    for (size_t i = 0; i < txt.length(); i++) {
         uint8_t c = s[i];
         if (c <= 0x7f)
             out.push_back(c);
