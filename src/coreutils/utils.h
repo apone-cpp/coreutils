@@ -1,26 +1,28 @@
 #pragma once
 
-#include "file.h"
-#include "path.h"
 #include "split.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <random>
 #include <sstream>
 #include <stdexcept>
-#include <stdint.h>
 #include <string>
 #include <sys/stat.h>
 #include <thread>
 #include <utility>
 #include <vector>
 
-#include <unistd.h>
+#include <filesystem>
+namespace fs = std::filesystem;
+
 #ifdef __APPLE__
 #    include <mach-o/dyld.h>
 #endif
@@ -28,9 +30,21 @@
 #ifdef _WIN32
 #    define WIN32_LEAN_AND_MEAN
 #    include <windows.h>
+#else
+#    include <unistd.h>
 #endif
 
 namespace utils {
+
+class io_exception : public std::exception
+{
+public:
+    explicit io_exception(std::string m = "IO Exception") : msg(std::move(m)) {}
+    const char* what() const noexcept override { return msg.c_str(); }
+
+private:
+    std::string msg;
+};
 
 template <class T, template <typename DUMMY> class CONTAINER>
 auto find(CONTAINER<T> const& haystack, T const& needle)
@@ -44,7 +58,7 @@ auto find_if(CONTAINER<T> const& haystack, FX const& fn)
     return std::find_if(begin(haystack), end(haystack), fn);
 }
 
-inline std::string spaces(int n)
+inline std::string spaces(std::string::size_type n)
 {
     return std::string(n, ' ');
 }
@@ -59,16 +73,15 @@ inline std::string indent(std::string const& text, int n)
     return join(target.begin(), target.end(), "\n");
 }
 
-inline bool endsWith(const std::string& name, const std::string& ext)
+inline bool ends_with(const std::string& name, const std::string& ext)
 {
     auto pos = name.rfind(ext);
     return (pos != std::string::npos && pos == name.length() - ext.length());
 }
 
-inline bool startsWith(const std::string& name, const std::string& pref)
+inline bool starts_with(const std::string& name, const std::string& pref)
 {
-    if (pref.empty())
-        return true;
+    if (pref.empty()) return true;
     return name.find(pref) == 0;
 }
 
@@ -77,63 +90,77 @@ inline void quote(std::string& s)
     s = "\"" + s + "\"";
 }
 
-inline bool isUpper(char const& c)
+inline bool is_upper(char const& c)
 {
     return std::isupper(c) != 0;
 }
-inline bool isLower(char const& c)
+inline bool is_lower(char const& c)
 {
     return std::islower(c) != 0;
 }
 
-inline bool isUpper(std::string const& s)
+inline bool is_upper(std::string const& s)
 {
     return std::all_of(s.begin(), s.end(),
-                       static_cast<bool (*)(char const&)>(&isUpper));
+                       static_cast<bool (*)(char const&)>(&is_upper));
 }
 
-inline bool isLower(std::string const& s)
+inline bool is_lower(std::string const& s)
 {
     return std::all_of(s.begin(), s.end(),
-                       static_cast<bool (*)(char const&)>(&isLower));
+                       static_cast<bool (*)(char const&)>(&is_lower));
 }
 
-inline void makeLower(std::string& s)
+inline void make_lower(std::string& s)
 {
-    for (auto& c : s)
-        c = tolower(c);
+    for (auto& c : s) {
+        c = static_cast<char>(tolower(c));
+    }
 }
 
-inline std::string toLower(const std::string& s)
+inline std::string to_lower(const std::string& s)
 {
     std::string s2 = s;
-    makeLower(s2);
+    make_lower(s2);
+    return s2;
+}
+
+inline void make_upper(std::string& s)
+{
+    for (auto& c : s) {
+        c = static_cast<char>(toupper(c));
+    }
+}
+
+inline std::string to_upper(const std::string& s)
+{
+    std::string s2 = s;
+    make_upper(s2);
     return s2;
 }
 
 inline std::string path_basename(const std::string& name)
 {
-    return utils::path(name).stem();
+    return fs::path(name).stem().string();
 }
 
 inline std::string path_directory(const std::string& name)
 {
-    return utils::path(name).parent_path();
+    return fs::path(name).parent_path().string();
 }
 
 inline std::string path_filename(const std::string& name)
 {
-    return utils::path(name).filename();
+    return fs::path(name).filename().string();
 }
 
 inline std::string path_extension(const std::string& name)
 {
-    auto ext = utils::path(name).extension();
-    if (ext.empty())
-        return "";
-    //if (ext[0] == '.')
-    //    return ext.substr(1);
-    return ext.substr(1);
+    auto ext = fs::path(name).extension();
+    if (ext.empty()) return "";
+    // if (ext[0] == '.')
+    //     return ext.substr(1);
+    return ext.string().substr(1);
 }
 
 inline std::string path_suffix(const std::string& name)
@@ -141,23 +168,37 @@ inline std::string path_suffix(const std::string& name)
     return path_extension(name);
 }
 
-inline std::string path_prefix(const std::string& name)
+inline std::string path_prefix(const fs::path& name)
 {
-    auto file_name = path_filename(name);
+    auto file_name = name.filename().string();
     auto dotPos = file_name.find('.');
-    if (dotPos == std::string::npos)
-        return "";
+    if (dotPos == std::string::npos) { return ""; }
     return file_name.substr(0, dotPos);
 }
 
-inline std::string getUniqueKey(std::string const& fileName)
+inline std::string read_as_string(fs::path const& fileName)
+{
+    std::ifstream t(fileName);
+    std::stringstream buffer;
+    buffer << t.rdbuf();
+    return buffer.str();
+}
+
+inline void write_as_string(fs::path const& fileName, std::string const& data)
+{
+    std::ofstream out(fileName);
+    out << data;
+    out.close();
+}
+
+inline std::string get_unique_key(std::string const& fileName)
 {
     std::string result;
     const char* letters =
         "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@_";
-    utils::path p{fileName};
-    if (utils::exists(p)) {
-        result = utils::File{p}.readAllString();
+    fs::path p{fileName};
+    if (fs::exists(p)) {
+        result = read_as_string(p);
     } else {
         char key[33];
         char* out = key;
@@ -168,28 +209,25 @@ inline std::string getUniqueKey(std::string const& fileName)
         }
         *out = 0;
         result = key;
-        utils::File f{p, utils::File::Mode::Write};
-        f.writeString(result);
+        write_as_string(p, result);
     }
     return result;
 }
 
-inline uint64_t currentTime()
+inline uint64_t current_time()
 {
     auto t = std::chrono::system_clock::now();
     return static_cast<uint64_t>(std::chrono::system_clock::to_time_t(t));
 }
 
-inline path get_current_dir()
+inline fs::path get_current_dir()
 {
-    std::array<char, 16384> buf;
-    ::getcwd(buf.data(), buf.size());
-    return {buf.data()};
+    return fs::current_path();
 }
 
-inline path get_home_dir()
+inline fs::path get_home_dir()
 {
-    path homeDir;
+    fs::path homeDir;
 #if _WIN32
     char* userProfile = getenv("USERPROFILE");
     if (userProfile == nullptr) {
@@ -202,23 +240,16 @@ inline path get_home_dir()
             return "";
         }
 
-        homeDir = path(homeDrive + homePath);
+        homeDir = fs::path(std::string(homeDrive) + homePath);
     } else
-        homeDir = path(userProfile);
+        homeDir = fs::path(userProfile);
 #else
-    homeDir = path(getenv("HOME"));
+    homeDir = fs::path(getenv("HOME"));
 #endif
     return homeDir;
 }
 
-inline path getCurrentDir()
-{
-    std::array<char, 16384> buf;
-    ::getcwd(buf.data(), buf.size());
-    return {buf.data()};
-}
-
-inline path getTempDir()
+inline fs::path get_temp_dir()
 {
     char buffer[2048];
 #ifdef _WIN32
@@ -226,10 +257,8 @@ inline path getTempDir()
         throw io_exception{"Could not get temporary directory"};
 #else
     const char* tmpdir = getenv("TMPDIR");
-    if (!tmpdir)
-        tmpdir = P_tmpdir;
-    if (!tmpdir)
-        tmpdir = "/tmp/";
+    if (!tmpdir) tmpdir = P_tmpdir;
+    if (!tmpdir) tmpdir = "/tmp/";
     strcpy(buffer, tmpdir);
 #endif
     return {buffer};
@@ -238,8 +267,7 @@ inline path getTempDir()
 inline void replace_char(char* s, char c, char r)
 {
     while (*s) {
-        if (*s == c)
-            *s = r;
+        if (*s == c) *s = r;
         s++;
     }
 }
@@ -249,7 +277,7 @@ inline void replace_char(std::string& s, char c, char r)
     replace_char(&s[0], c, r);
 }
 
-inline path get_cache_dir(std::string const& appName)
+inline fs::path get_cache_dir(std::string const& appName)
 {
     auto home = get_home_dir();
 #ifdef _WIN32_NOT_NEEDED
@@ -257,64 +285,87 @@ inline path get_cache_dir(std::string const& appName)
 #endif
     auto d = home / ".cache" / appName;
     // LOGD("CACHE: %s", d);
-    if (!exists(d))
-        utils::create_directories(d);
+    if (!exists(d)) fs::create_directories(d);
     return d;
 }
 
-inline path get_exe_dir()
+inline fs::path get_exe_path()
 {
-    path exeDir;
+    fs::path exeDir;
     char buf[1024];
 #if defined _WIN32
     GetModuleFileName(nullptr, buf, sizeof(buf) - 1);
-    exeDir = utils::path(buf).parent_path();
+    exeDir = fs::path(buf);
 #elif defined __APPLE__
     uint32_t size = sizeof(buf);
-    if (_NSGetExecutablePath(buf, &size) == 0) {
-        exeDir = utils::path(buf).parent_path();
-    }
+    if (_NSGetExecutablePath(buf, &size) == 0) { exeDir = fs::path(buf); }
 #else
     int rc = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
     if (rc >= 0) {
         buf[rc] = 0;
-        exeDir = utils::path(buf).parent_path();
+        exeDir = fs::path(buf);
     }
 #endif
     return exeDir;
 }
 
+inline fs::path get_exe_dir()
+{
+    return get_exe_path().parent_path();
+}
+
+inline uint32_t get_exe_id()
+{
+    auto exe_path = get_exe_path();
+    uint32_t id = fs::file_size(exe_path);
+    auto t = fs::last_write_time(exe_path).time_since_epoch().count();
+    id ^= static_cast<uint32_t>(t);
+    return id;
+}
+
 static constexpr char PathSeparator = ';';
 
-inline std::string make_search_path(std::vector<path> path_list, bool resolve)
+inline std::string make_search_path(std::vector<fs::path> const& path_list,
+                                    bool resolve)
 {
-    std::string result = "";
-    std::string sep = "";
-    for (const path& f : path_list) {
-        if (resolve)
-            result = result + sep + absolute(f).string();
-        else
-            result = result + sep + f.string();
+    std::string result;
+    std::string sep;
+    for (const auto& f : path_list) {
+        result += sep;
+        if (resolve) {
+            result += absolute(f).string();
+        } else {
+            result += f.string();
+        }
         sep = std::string(1, PathSeparator);
     }
     return result;
 }
 
-inline path find_path(const std::string& search_path, const std::string name)
+inline fs::path find_path(std::string const& search_path,
+                          std::string const& name)
 {
-    if (name.empty())
-        return "";
+    if (name.empty()) return "";
     for (std::string part : split(search_path, PathSeparator)) {
-        auto f = utils::path(part) / name;
-        if (exists(f))
-            return f;
+        auto f = fs::path(part) / name;
+        if (exists(f)) return f;
     }
     return "";
 }
 
-inline void copyFileToFrom(utils::path const& target, utils::path const& source)
+inline std::vector<uint8_t> read_file(fs::path const& fileName, int64_t max = -1)
 {
-    utils::remove(target);
+    std::ifstream instream(fileName, std::ios::in | std::ios::binary);
+    std::vector<uint8_t> data((std::istreambuf_iterator<char>(instream)),
+                              std::istreambuf_iterator<char>());
+    return data;
+}
+
+inline void copy_file_to_from(fs::path const& target, fs::path const& source)
+{
+    using namespace std::string_literals;
+
+    fs::remove(target);
     std::ifstream src(source, std::ios::binary);
     if (src.is_open()) {
         std::ofstream dst(target, std::ios::binary);
@@ -327,7 +378,7 @@ inline void copyFileToFrom(utils::path const& target, utils::path const& source)
     throw io_exception("Could not read: "s + source.string());
 }
 
-#define COMPUTE(var, ch) (var) = (var) << 8 ^ crctab[(var) >> 24 ^ (ch)]
+#define COMPUTE(var, ch) ((var) = (var) << 8 ^ crctab[(var) >> 24 ^ (ch)])
 inline uint32_t crc32(const uint32_t* data, int size)
 {
     static const uint32_t crctab[] = {
@@ -376,7 +427,7 @@ inline uint32_t crc32(const uint32_t* data, int size)
         0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4};
 
     uint32_t crc = 0;
-    while (size--) {
+    while ((size--) != 0) {
         uint32_t v = *data++;
         COMPUTE(crc, v & 0xFF);
         COMPUTE(crc, (v >> 8) & 0xFF);
@@ -397,51 +448,30 @@ inline void sleepus(unsigned us)
     std::this_thread::sleep_for(std::chrono::microseconds(us));
 }
 
-template <typename T> inline T clamp(T x, T a0, T a1)
-{
-    return std::min(std::max(x, a0), a1);
-}
-
-template <typename T> constexpr T bswap(T const& t) {}
-
-template <> constexpr uint32_t bswap(uint32_t const& t)
-{
-    return __builtin_bswap32(t);
-}
-
-template <> constexpr uint64_t bswap(uint64_t const& t)
-{
-    return __builtin_bswap64(t);
-}
-
-inline void listFiles(const utils::path& root, std::vector<utils::path>& result,
+static inline void list_files(const fs::path& root, std::vector<fs::path>& result,
                       bool includeDirs, bool recurse)
 {
-    DIR* dir;
-    struct dirent* ent;
-    if ((dir = opendir(root.string().c_str())) != nullptr) {
-        while ((ent = readdir(dir)) != nullptr) {
-            char* p = ent->d_name;
-            if (p[0] == '.' && (p[1] == 0 || (p[1] == '.' && p[2] == 0)))
-                continue;
-            auto f = root / ent->d_name;
-            if (ent->d_type == DT_DIR) {
-                if (includeDirs)
-                    result.push_back(f);
-                if (recurse)
-                    listFiles(f, result, includeDirs, recurse);
-            } else
-                result.push_back(f);
+    for (const auto& entry : fs::directory_iterator(root)) {
+        auto&& p = entry.path().string();
+        if (p[0] == '.' && (p[1] == 0 || (p[1] == '.' && p[2] == 0))) {
+            continue;
         }
-        closedir(dir);
+        if (entry.is_directory()) {
+            if (includeDirs) { result.push_back(entry.path()); }
+            if (recurse) {
+                list_files(entry.path(), result, includeDirs, recurse);
+            }
+        } else {
+            result.push_back(entry.path());
+        }
     }
 }
 
-inline std::vector<path> listFiles(utils::path const& root, bool includeDirs,
-                                   bool recurse)
+inline std::vector<fs::path> list_files(fs::path const& root, bool includeDirs,
+                                       bool recurse)
 {
-    std::vector<utils::path> rc;
-    listFiles(root, rc, includeDirs, recurse);
+    std::vector<fs::path> rc;
+    list_files(root, rc, includeDirs, recurse);
     return rc;
 }
 

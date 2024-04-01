@@ -1,8 +1,9 @@
 #pragma once
 
-#include "format.h"
 #include <cstring>
 #include <string>
+
+//  #include <fmt/format.h>
 
 namespace logging {
 
@@ -17,74 +18,64 @@ enum Level
 };
 
 void log(const std::string& text);
-void log(const Level level, const std::string& text);
-void log2(const char* fn, int line, const Level level, const std::string& text);
+void log( Level level, const std::string& text);
+void log2(const char* fn, int line,  Level level, const std::string& text);
 
 template <class... A> void log(const std::string& fmt, const A&... args)
 {
-    log(utils::format(fmt, args...));
+    //log(fmt::format(fmt, args...));
 }
 
 template <class... A>
 void log(Level level, const std::string& fmt, const A&... args)
 {
-    log(level, utils::format(fmt, args...));
+    //log(level, fmt::format(fmt, args...));
 }
 
 template <class... A>
 void log2(const char* fn, int line, Level level, const std::string& fmt,
           const A&... args)
 {
-    log2(fn, line, level, utils::format(fmt, args...));
-}
-
-inline void LogVL(int line, const char* fileName, const char* text, va_list vl)
-{
-    char temp[2048];
-    vsnprintf(temp, sizeof(temp), text, vl);
-    log2(fileName, line, Debug, temp);
+    //log2(fn, line, level, fmt::format(fmt, args...));
 }
 
 void setLevel(Level level);
 void setOutputFile(const std::string& fileName);
-// void setLogSpace(const std::string &sourceFile, const std::string &function,
-// const std::string &spaceName);
 
 inline constexpr const char* xbasename(const char* x)
 {
     const char* slash = x;
-    while (*x) {
-        if (*x++ == '/')
-            slash = x;
+    while (*x != 0) {
+        if (*x++ == '/') { slash = x; }
     }
     return slash;
 }
 
 #ifdef COREUTILS_LOGGING_DISABLE
 
-#define LOGV(...)
-#define LOGD(...)
-#define LOGI(...)
-#define LOGW(...)
-#define LOGE(...)
+#    define LOGV(...)
+#    define LOGD(...)
+#    define LOGI(...)
+#    define LOGW(...)
+#    define LOGE(...)
 
 #else
 
-#define LOGV(...)                                                              \
-    logging::log2(logging::xbasename(__FILE__), __LINE__, logging::Verbose,    \
-                  __VA_ARGS__)
-#define LOGD(...)                                                              \
-    logging::log2(logging::xbasename(__FILE__), __LINE__, logging::Debug,      \
-                  __VA_ARGS__)
-#define LOGI(...)                                                              \
-    logging::log2(logging::xbasename(__FILE__), __LINE__, logging::Info,       \
-                  __VA_ARGS__)
-#define LOGW(...)                                                              \
-    logging::log2(logging::xbasename(__FILE__), __LINE__, logging::Warning,    \
-                  __VA_ARGS__)
-#define LOGE(...)                                                              \
-    logging::log2(logging::xbasename(__FILE__), __LINE__, logging::Error,      \
-                  __VA_ARGS__)
+#    define LOGV(...)                                                          \
+        logging::log2(logging::xbasename(__FILE__), __LINE__,                  \
+                      logging::Verbose, __VA_ARGS__)
+#    define LOGD(...)                                                          \
+        logging::log2(logging::xbasename(__FILE__), __LINE__, logging::Debug,  \
+                      __VA_ARGS__)
+#    define LOGI(...)                                                          \
+        logging::log2(logging::xbasename(__FILE__), __LINE__, logging::Info,   \
+                      __VA_ARGS__)
+#    define LOGW(...)                                                          \
+        logging::log2(logging::xbasename(__FILE__), __LINE__,                  \
+                      logging::Warning, __VA_ARGS__)
+#    define LOGE(...)                                                          \
+        logging::log2(logging::xbasename(__FILE__), __LINE__, logging::Error,  \
+                      __VA_ARGS__)
 #endif
 } // namespace logging
 

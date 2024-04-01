@@ -7,7 +7,7 @@
 
 namespace utils {
 
-inline std::wstring jis2unicode(uint8_t* text)
+inline std::u32string jis2unicode(uint8_t* text)
 {
     uint16_t jis_map[] = {
     0xA1, 0xFF61, 0xA2, 0xFF62, 0xA3, 0xFF63, 0xA4, 0xFF64, 0xA5, 0xFF65, 0xA6,
@@ -2905,7 +2905,7 @@ inline std::wstring jis2unicode(uint8_t* text)
         init = true;
     }
     uint8_t* p = text;
-    std::wstring result;
+    std::u32string result;
     while (*p) {
         uint16_t c = *p++;
         if ((c >= 0x81 && c <= 0x9f) || (c >= 0xe0)) {
@@ -2933,8 +2933,9 @@ static inline uint16_t decode(const std::string& symbol)
 
 inline std::string htmldecode(const std::string& s, bool stripTags = false)
 {
-    char target[s.length() + 1];
-    auto* ptr = (unsigned char*)target;
+    //char target[s.length() + 1];
+    std::vector<char> target(s.length() + 1);
+    auto* ptr = (unsigned char*)target.data();
     char symbol[32];
     char* sptr;
     bool inTag = false;
@@ -2981,29 +2982,30 @@ inline std::string htmldecode(const std::string& s, bool stripTags = false)
         *ptr++ = c;
     }
     *ptr = 0;
-    return std::string(target);
+    return std::string(target.data());
 }
 
 inline std::string urlencode(const std::string& s, const std::string& chars)
 {
-    char target[s.length() * 3 + 1];
-    char* ptr = target;
+    std::vector<char> target(s.length() * 3 + 1);
+    auto* ptr = target.data();
+
     for (unsigned i = 0; i < s.length(); i++) {
         auto c = s[i];
         if (chars.find(c) != std::string::npos) {
-            sprintf(ptr, "%%%02x", c);
+            snprintf(ptr, 4, "%%%02x", c);
             ptr += 3;
         } else
             *ptr++ = c;
     }
     *ptr = 0;
-    return std::string(target);
+    return std::string(target.data());
 }
 
 inline std::string urldecode(const std::string& s, const std::string& chars)
 {
-    char target[s.length() + 1];
-    char* ptr = target;
+    std::vector<char> target(s.length() + 1);
+    auto* ptr = target.data();
     for (unsigned i = 0; i < s.length(); i++) {
         auto c = s[i];
         if (c == '%') {
@@ -3013,7 +3015,7 @@ inline std::string urldecode(const std::string& s, const std::string& chars)
             *ptr++ = c;
     }
     *ptr = 0;
-    return std::string(target);
+    return std::string(target.data());
 }
 
 } // namespace utils

@@ -2,8 +2,15 @@
 
 #include "log.h"
 
+#include "utils.h"
+
 #include <cstdint>
 #include <string>
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
 
 namespace utils {
 
@@ -13,8 +20,8 @@ typedef void* HANDLE;
 
 struct ExecPipe
 {
-    ExecPipe() {}
-    ExecPipe(const std::string& cmd);
+    ExecPipe() = default;
+    explicit ExecPipe(const std::string& cmd);
     ~ExecPipe();
 
     ExecPipe(ExecPipe&& other) = default;
@@ -26,7 +33,7 @@ struct ExecPipe
     void Kill();
     int read(uint8_t* target, int size);
     int write(uint8_t* source, int size);
-    operator std::string();
+    explicit operator std::string();
 
 #ifdef _WIN32
     HANDLE hPipeRead;
@@ -34,8 +41,8 @@ struct ExecPipe
     HANDLE hProcess;
 #else
     pid_t pid = -1;
-    int outfd;
-    int infd;
+    int outfd{};
+    int infd{};
 #endif
 };
 
@@ -50,8 +57,7 @@ inline ExecPipe::ExecPipe(const std::string& cmd)
     auto c = std::string("cmd.exe /C ") + cmd;
 
     // Create a pipe to get results from child's stdout.
-    if (!CreatePipe(&hPipeRead, &hPipeWrite, &saAttr, 0))
-        return;
+    if (!CreatePipe(&hPipeRead, &hPipeWrite, &saAttr, 0)) return;
 
     PROCESS_INFORMATION pi = {0};
 
@@ -86,8 +92,7 @@ inline int ExecPipe::read(uint8_t* target, int size)
         if (!dwAvail) // no data available, return
             break;
 
-        if (dwAvail > size)
-            dwAvail = size;
+        if (dwAvail > size) dwAvail = size;
 
         if (!::ReadFile(hPipeRead, target, dwAvail, &dwRead, NULL) || !dwRead)
             // error, the child process might ended
@@ -98,8 +103,7 @@ inline int ExecPipe::read(uint8_t* target, int size)
         target += dwRead;
     }
 
-    if (total == 0)
-        return -1;
+    if (total == 0) return -1;
 
     return total;
 }
@@ -120,8 +124,7 @@ ExecPipe& ExecPipe::operator=(ExecPipe&& other) noexcept
 
 inline bool ExecPipe::hasEnded()
 {
-    if (hProcess == 0)
-        return true;
+    if (hProcess == 0) return true;
     if (WaitForSingleObject(hProcess, 50) == WAIT_OBJECT_0) {
         hProcess = 0;
         return true;
@@ -160,13 +163,11 @@ inline pid_t popen2(const char* command, int* infp, int* outfp)
     int p_stdin[2], p_stdout[2];
     pid_t pid;
 
-    if (pipe(p_stdin) != 0 || pipe(p_stdout) != 0)
-        return -1;
+    if (pipe(p_stdin) != 0 || pipe(p_stdout) != 0) return -1;
 
     pid = fork();
 
-    if (pid < 0)
-        return pid;
+    if (pid < 0) return pid;
     if (pid == 0) {
         close(p_stdin[WRITE]);
         dup2(p_stdin[READ], READ);
@@ -230,8 +231,7 @@ inline void ExecPipe::Kill()
 inline int ExecPipe::read(uint8_t* target, int size)
 {
     int rc = ::read(outfd, target, size);
-    if (rc == -1 && errno != EAGAIN)
-        rc = -2;
+    if (rc == -1 && errno != EAGAIN) rc = -2;
     return rc;
 }
 
@@ -243,8 +243,7 @@ inline int ExecPipe::write(uint8_t* source, int size)
 
 inline bool ExecPipe::hasEnded()
 {
-    if (pid == -1)
-        return true;
+    if (pid == -1) return true;
     int rc;
     if (waitpid(pid, &rc, WNOHANG) == pid) {
         LOGD("PID ended %d %d", pid, rc);
@@ -275,7 +274,7 @@ inline ExecPipe::operator std::string()
 
 inline int shellExec(const std::string& cmd, const std::string& binDir)
 {
-#ifdef _WIN32
+#ifdef _WIN32X
     auto cmdLine = utils::format("/C %s", cmd);
     SHELLEXECUTEINFO ShExecInfo = {0};
     ShExecInfo.cbSize = sizeof(SHELLEXECUTEINFO);
@@ -285,8 +284,7 @@ inline int shellExec(const std::string& cmd, const std::string& binDir)
     ShExecInfo.lpFile = "cmd.exe";
 
     ShExecInfo.lpParameters = cmdLine.c_str();
-    if (binDir != "")
-        ShExecInfo.lpDirectory = binDir.c_str();
+    if (binDir != "") ShExecInfo.lpDirectory = binDir.c_str();
     ShExecInfo.nShow = SW_HIDE;
     ShExecInfo.hInstApp = NULL;
     ShellExecuteEx(&ShExecInfo);
@@ -299,7 +297,7 @@ inline int shellExec(const std::string& cmd, const std::string& binDir)
 
 inline ExecPipe execPipe(const std::string& cmd)
 {
-    return ExecPipe(cmd);
+    return ExecPipe{cmd};
 }
 
 } // namespace utils
